@@ -5,6 +5,9 @@
  *   --inline-progress-width   バーの幅（既定 8em）
  *   --inline-progress-height  バーの太さ（既定 0.5em）
  *   --inline-progress-margin  コンポーネントの左右の余白（既定 0.4em）
+ *   --inline-progress-tick-width  目盛り線の太さ（既定 1px）
+ *   --inline-progress-tick-color  目盛り線の色（既定 var(--background-primary)）
+ *   --inline-progress-tick-min-pitch  目盛り線を表示する 1 区画の最小の幅（既定 4px）
  * CSS スニペットで `.inline-progress { --inline-progress-width: 12em; }` のように上書きする。
  */
 
@@ -38,6 +41,8 @@
 	overflow: hidden;
 	border-radius: var(--radius-s, 4px);
 	background-color: var(--background-modifier-border);
+	/* 目盛り線が、バーの実際の幅（100cqw）から 1 区画の幅を求められるようにする。 */
+	container-type: inline-size;
 }
 
 .inline-progress-fill {
@@ -52,6 +57,54 @@
 /* 完了（全区画が塗られた）ときは、テーマの「成功」の色にする。 */
 .inline-progress.is-complete .inline-progress-fill {
 	background-color: var(--text-success);
+}
+
+/*
+ * 区画の境目に目盛り線を入れる（has-ticks が付いているとき）。
+ * 塗り領域の上に重ねるため、トラックの ::after に描く。要素を増やさず、グラデーションを繰り返して作る。
+ *
+ * - 1区画の幅は (トラックの幅) / 総数。
+ * - 線は各区画の右端の --inline-progress-tick-width 分に引く。
+ * - 右端（最後の区画の右）には線を引かないため、::after の右側を線の幅だけ詰める。
+ *   その分 100% が線の幅だけ短くなるので、区画の幅は (100% + 線の幅) / 総数 で補正する。
+ *   最後の区画の線は ::after の外に出て、描かれない。
+ */
+.inline-progress.has-ticks .inline-progress-track::after {
+	--inline-progress-pitch: calc((100% + var(--inline-progress-tick-width, 1px)) / var(--inline-progress-total));
+	content: '';
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: var(--inline-progress-tick-width, 1px);
+	pointer-events: none;
+	opacity: 0.6;
+	background-image: repeating-linear-gradient(to right,
+			transparent 0,
+			transparent calc(var(--inline-progress-pitch) - var(--inline-progress-tick-width, 1px)),
+			var(--inline-progress-tick-color, var(--background-primary)) calc(var(--inline-progress-pitch) - var(--inline-progress-tick-width, 1px)),
+			var(--inline-progress-tick-color, var(--background-primary)) var(--inline-progress-pitch));
+}
+
+/*
+ * 1 区画の幅（バーの幅 ÷ 総数）が --inline-progress-tick-min-pitch（既定 4px）以上のときだけ、
+ * 目盛り線を表示する。未満なら消す。
+ * 計算の誤差で 4px ちょうどが消えないよう、0.01px 手前から表示に移る。
+ * 長さ ÷ 長さ（型付き算術）が使える環境でのみ有効。
+ */
+@supports (opacity: calc(100cqw / 4px)) {
+	.inline-progress.has-ticks .inline-progress-track::after {
+		opacity: calc(0.6 * clamp(0,
+					(100cqw / var(--inline-progress-total) - var(--inline-progress-tick-min-pitch, 4px) + 0.01px) / 0.01px,
+					1));
+	}
+}
+
+/* 型付き算術が使えない環境では、区画が多いとき（is-dense）は目盛り線を消す。 */
+@supports not (opacity: calc(100cqw / 4px)) {
+	.inline-progress.is-dense .inline-progress-track::after {
+		display: none;
+	}
 }
 
 .inline-progress-label {

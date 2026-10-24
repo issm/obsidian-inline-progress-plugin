@@ -1,9 +1,20 @@
 import type { ProgressData } from './parser';
 
 /**
+ * 区画が多く、既定の幅では目盛りが密になりすぎる総数のしきい値。
+ *
+ * 目盛りの濃さは、通常は CSS が「バーの幅 ÷ 総数」から決める。
+ * CSS が長さ同士の割り算に対応していない環境では、これを超えたとき目盛りを消す。
+ * 既定の幅（8em、16px で 128px）で、1区画が 4px になる総数。
+ */
+export const DENSE_TOTAL = 32;
+
+/**
  * 進捗データから DOM を作る。閲覧モードとライブプレビューで共有する。
  *
- * <span class="inline-progress">                              全区画が塗られていれば is-complete が付く
+ * <span class="inline-progress">                              全区画が塗られていれば is-complete、
+ *                                                           区切りがあれば has-ticks、
+ *                                                           区画が多ければ is-dense が付く
  *   <div class="inline-progress-track" role="progressbar">   固定幅
  *     <div class="inline-progress-fill"></div>               塗り領域（複数のことがある）
  *   </div>
@@ -22,6 +33,14 @@ export function createProgressEl(data: ProgressData, doc: Document): HTMLElement
 	if (data.filledCount === data.total) {
 		root.classList.add('is-complete');
 	}
+	// 区切りが2つ以上あれば、目盛り線を描く。濃さは CSS が 1 区画の幅に応じて決める。
+	if (data.total >= 2) {
+		root.classList.add('has-ticks');
+	}
+	// 長さ同士の割り算に対応していない環境向けの目印（styles.css のフォールバックが使う）。
+	if (data.total > DENSE_TOTAL) {
+		root.classList.add('is-dense');
+	}
 
 	const track = doc.createElement('div');
 	track.className = 'inline-progress-track';
@@ -30,6 +49,8 @@ export function createProgressEl(data: ProgressData, doc: Document): HTMLElement
 	track.setAttribute('aria-valuemax', String(data.total));
 	track.setAttribute('aria-valuenow', String(data.filledCount));
 	track.setAttribute('aria-label', data.source);
+	// 目盛り線の間隔（1区画の幅）を CSS で計算するために、総数を渡す。
+	track.style.setProperty('--inline-progress-total', String(data.total));
 	root.appendChild(track);
 
 	for (const range of data.ranges) {
