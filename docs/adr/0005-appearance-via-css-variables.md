@@ -14,7 +14,7 @@
   - `--inline-progress-height`（既定 `0.5em`）
   - `--inline-progress-margin`（既定 `0.4em`。`margin-inline` に使い、1つの値が左右の両側に効く）
 - 色は、Obsidian のテーマ変数を使う。
-  - 塗り: `--interactive-accent`
+  - 塗り: `--color-cyan`（当初は `--interactive-accent`。accent、blue、cyan の3案を Obsidian Nord で描画して比べ、cyan に決めた。明るく、トラックの背景との差が大きいので、歯抜けの細い塗りも読み取りやすい）
   - 完了時の塗り: `--text-success`
   - トラックの背景: `--background-modifier-border`
 - 塗り領域の位置と幅は、割合（0〜1）を CSS 変数（`--inline-progress-start` / `--inline-progress-length`）で渡し、`calc()` で変換する。
