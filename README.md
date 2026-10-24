@@ -64,6 +64,8 @@
 - ライブプレビューでは、カーソルや選択範囲がフィールドに触れている間は、編集できるよう元のテキストが表示されます。
 - インラインコードやコードブロックの中は、置き換えません。
 - 全区画が完了したとき（`12/12` など）は、バーの塗りがテーマの「成功」の色（`--text-success`）になります。
+- 区画の境目に、目盛り線が入ります。1区画の幅（バーの幅 ÷ 分母）が 4px 以上のときだけ表示し、4px 未満では表示しません。区画が細かいと目盛りが縞模様になって見づらいためです。既定の幅（`8em`、16px で 128px）では、分母が 32 までです。
+  - 環境によっては、幅に応じた制御が使えず、分母が 33 以上のときに消える動きになります。
 
 ### 見た目の調整
 
@@ -74,10 +76,21 @@
 	--inline-progress-width: 12em;   /* バーの幅（既定 8em） */
 	--inline-progress-height: 0.4em; /* バーの太さ（既定 0.5em） */
 	--inline-progress-margin: 0.6em; /* 左右の余白（既定 0.4em） */
+	--inline-progress-tick-width: 2px; /* 目盛り線の太さ（既定 1px） */
+	--inline-progress-tick-color: black; /* 目盛り線の色（既定 var(--background-primary)） */
+	--inline-progress-tick-min-pitch: 3px; /* 目盛り線を表示する 1 区画の最小の幅（既定 4px） */
 }
 ```
 
-色は、テーマの変数（塗りは `--interactive-accent`、完了時は `--text-success`、背景は `--background-modifier-border`）に従います。
+色は、テーマの変数（塗りは `--interactive-accent`、完了時は `--text-success`、背景は `--background-modifier-border`、目盛り線は `--background-primary`）に従います。
+
+目盛り線をなくしたい場合は、次のスニペットを追加します。
+
+```css
+.inline-progress-track::after {
+	display: none;
+}
+```
 
 ## インストール
 

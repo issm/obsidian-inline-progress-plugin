@@ -84,6 +84,12 @@ styles.css           # 見た目
 - 塗り領域の位置と幅は、トラックに対する割合（0〜1）を CSS 変数で渡し、`calc(var(--inline-progress-start) * 100%)` で変換する。区画ごとに要素を作らないので、総数が大きくても要素数は増えない。
 - 位置 `i`（1始まり）の範囲は `start = (i-1)/total`、`length = 範囲の長さ/total`。
 - 全区画が塗られているとき（`filledCount === total`）は、外側に `is-complete` クラスを付け、塗りを `--text-success` にする。
+- 区画の境目の目盛り線は、総数が 2 以上のとき、外側に `has-ticks` クラスを付けて描く。判断の理由は [ADR 0007](adr/0007-ticks-drawn-with-css-gradient.md)。
+  - トラックに `--inline-progress-total`（総数）を渡し、トラックの `::after` に `repeating-linear-gradient` で線を引く。塗り領域の上に重なる。
+  - 1区画の幅は `(100% + 線の太さ) / 総数`。`::after` の右側を線の太さだけ詰め、最後の区画の線がはみ出して描かれないようにしている（右端に線を引かない）。
+  - 表示するかどうかは、1区画の幅（`100cqw / 総数`）で決める。4px 以上で表示、未満で非表示。計算の誤差で 4px ちょうどが消えないよう、0.01px 手前から表示に移る。`100cqw` はトラックの `container-type: inline-size` による。長さ ÷ 長さが使える環境でだけ有効（`@supports`）。
+  - 使えない環境向けに、総数が `DENSE_TOTAL`（32）を超えるとき `is-dense` クラスを付け、CSS で目盛りを消す。
+  - 線の太さと色は `--inline-progress-tick-width`（既定 `1px`）と `--inline-progress-tick-color`（既定 `--background-primary`）、表示する 1 区画の最小の幅は `--inline-progress-tick-min-pitch`（既定 `4px`）で変えられる。
 - 行の中央に揃えるため、外側は `height: 1lh` の箱にして `align-items: center`、`vertical-align: top` で行の上端に合わせる。`1lh` が使えない環境では `vertical-align: middle` にフォールバックする。
 - 要素は `doc.createElement` で作る。`doc` は呼び出し側（`el.ownerDocument` / `view.dom.ownerDocument`）から渡し、ポップアウトウィンドウでも正しく動くようにする。
 
@@ -102,5 +108,11 @@ Obsidian（テーマ: Obsidian Nord）で、次の点を確認済み。
 - インラインコードとフェンス付きコードブロックの中が置換されないこと
 - ライブプレビューで、バーのクリックによる編集ができること
 - Markdown の表の中でも、表示と、セル内での編集ができること（`;` 区切りのオプションを含む）
+- 目盛り線（Chrome ヘッドレスでの確認）: 位置と本数（`10/12`、`2/4`、`1/1`）、幅 64px・128px・192px・文字サイズ 15px で、1区画がちょうど 4px のとき表示され、それ未満で消えること、閾値の変更（3px）、型付き算術が使えない場合のフォールバック（分母 33 以上で消える）
+
+- 目盛り線の表示判定（Obsidian、テーマ: Obsidian Nord、閲覧モードの表）
+  - 既定の幅（128px）では、分母 32（1区画 4px）まで目盛りが表示され、36 以上で消える。
+  - 幅を `12em`（192px）にすると、分母 36〜43 で目盛りが表示され、64 以上で消える。
+  - 幅を変えると境界が動くので、Obsidian 同梱の Chromium（142）でも、長さ ÷ 長さの判定が使えている。使えない環境の代替（分母 33 以上で消える）では、分母 36〜43 に目盛りは出ない。
 
 未確認の点: 他のテーマ（Underwater など）での色、モバイルでの表示。
