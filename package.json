@@ -1,6 +1,6 @@
 {
 	"name": "inline-progress",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"description": "Render [progress:: 10/12] inline fields as progress bars in Obsidian.",
 	"main": "main.js",
 	"type": "module",
