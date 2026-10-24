@@ -1,8 +1,62 @@
 /*
+ * Inline Progress
+ *
+ * 次の変数で見た目を変えられる。
+ *   --inline-progress-width   バーの幅（既定 8em）
+ *   --inline-progress-height  バーの太さ（既定 0.5em）
+ *   --inline-progress-margin  コンポーネントの左右の余白（既定 0.4em）
+ * CSS スニペットで `.inline-progress { --inline-progress-width: 12em; }` のように上書きする。
+ */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.inline-progress {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5em;
+	margin-inline: var(--inline-progress-margin, 0.4em);
+	/* 1lh が使えない環境向けの代替。バーの中心を x-height の半分の位置に合わせる。 */
+	vertical-align: middle;
+}
 
-If your plugin does not need CSS, delete this file.
+/*
+ * 行の中央に揃える。
+ * 行の高さ（1lh）と同じ高さの箱の中でバーとラベルを中央揃えにし、その箱を行の上端に合わせる。
+ * 文字は行の中で上下均等に配置されるため、箱の中心が文字の中心と一致する。
+ */
+@supports (height: 1lh) {
+	.inline-progress {
+		height: 1lh;
+		vertical-align: top;
+	}
+}
 
-*/
+/* 固定幅のトラック。塗り領域はこの中に割合で配置する。 */
+.inline-progress-track {
+	position: relative;
+	box-sizing: border-box;
+	width: var(--inline-progress-width, 8em);
+	height: var(--inline-progress-height, 0.5em);
+	overflow: hidden;
+	border-radius: var(--radius-s, 4px);
+	background-color: var(--background-modifier-border);
+}
+
+.inline-progress-fill {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: calc(var(--inline-progress-start, 0) * 100%);
+	width: calc(var(--inline-progress-length, 0) * 100%);
+	background-color: var(--interactive-accent);
+}
+
+/* 完了（全区画が塗られた）ときは、テーマの「成功」の色にする。 */
+.inline-progress.is-complete .inline-progress-fill {
+	background-color: var(--text-success);
+}
+
+.inline-progress-label {
+	color: var(--text-muted);
+	font-size: 90%;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
