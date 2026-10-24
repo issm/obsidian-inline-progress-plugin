@@ -8,7 +8,9 @@ Inline Progress の構成と実装の要点。記法そのものは [README](../
 
 ```
 src/
-  main.ts            # onload で2つの表示経路を登録するだけ
+  main.ts            # ライフサイクル。設定の読み込み・保存・反映と、2つの表示経路の登録
+  settings.ts        # 設定の型・既定値・検証、body への反映（Obsidian API 非依存）
+  settings-tab.ts    # 設定画面（PluginSettingTab）
   progress/
     parser.ts        # 文字列 → ProgressData の純粋関数（Obsidian API 非依存）
     render.ts        # ProgressData → DOM 要素
@@ -29,7 +31,7 @@ styles.css           # 見た目
 | `tentative` | 分母が仮か（分母の数字に `?` が付いている）。`total` が `null` のときは常に `false` |
 | `ranges` | 塗られる範囲（1始まり、両端を含む）。昇順で、隣接する位置は1つにまとめる |
 | `filledCount` | 塗られる区画の数 |
-| `showLabel` | ラベルを表示するか |
+| `label` | ラベルの表示をオプションで明示したか。`label` なら `'show'`、`nolabel` なら `'hide'`、指定なしは `null`（設定の既定に従う） |
 | `source` | 値の部分の元の表記（`aria-label` に使う） |
 
 個数指定（`10/12`）は `ranges` が1つ（`[{start: 1, end: 10}]`）、位置指定は位置ごとの範囲になる。`render.ts` は両者を区別せず、`ranges` だけを見て描画する。
@@ -85,9 +87,11 @@ styles.css           # 見た目
     <div class="inline-progress-fill" style="--inline-progress-start: 0; --inline-progress-length: 0.0833"></div>
     <!-- 塗り範囲ごとに1つ -->
   </div>
-  <span class="inline-progress-label">3/12</span>  <!-- nolabel なら無い -->
+  <span class="inline-progress-label">3/12</span>  <!-- 常に作る。表示は CSS が決める -->
 </span>
 ```
+
+- ラベルは常に作る。`nolabel` なら外側に `label-hide`、指定なしなら `label-auto` を付ける（`label` で明示したときは付けない）。`label-hide` は常に隠し、`label-auto` は `body.inline-progress-hide-label` があるときだけ隠す。判断の理由は [ADR 0011](adr/0011-settings-reflected-via-css.md)。
 
 - 外側は `span`（`inline-flex`）で、文中に置くための入れ物。トラックとラベルを横に並べる。
 - トラックは固定幅の `div`。塗り領域はその内側に `position: absolute` で置く。
@@ -110,6 +114,23 @@ styles.css           # 見た目
   - 線の太さと色は `--inline-progress-tick-width`（既定 `1px`）と `--inline-progress-tick-color`（既定 `--background-primary`）、表示する 1 区画の最小の幅は `--inline-progress-tick-min-pitch`（既定 `4px`）で変えられる。
 - 行の中央に揃えるため、外側は `height: 1lh` の箱にして `align-items: center`、`vertical-align: top` で行の上端に合わせる。`1lh` が使えない環境では `vertical-align: middle` にフォールバックする。
 - 要素は `doc.createElement` で作る。`doc` は呼び出し側（`el.ownerDocument` / `view.dom.ownerDocument`）から渡し、ポップアウトウィンドウでも正しく動くようにする。
+
+## 設定
+
+設定画面（**Settings → Inline Progress**）の項目は、ラベルの既定の表示、バーの幅・太さ、左右の余白。判断の理由は [ADR 0011](adr/0011-settings-reflected-via-css.md)。
+
+| 設定 | キー | 反映のしかた |
+|---|---|---|
+| ラベルを既定で表示 | `showLabel`（既定 `true`） | オフのとき `body` に `inline-progress-hide-label` を付ける |
+| バーの幅 | `width` | `--inline-progress-width` |
+| バーの太さ | `height` | `--inline-progress-height` |
+| 左の余白 | `marginStart` | `--inline-progress-margin-start` |
+| 右の余白 | `marginEnd` | `--inline-progress-margin-end` |
+
+- 保存は `loadData()` / `saveData()`。読み込み時に `normalizeSettings` で型と値を検査し、不正なら既定値に落とす。
+- 寸法の空欄は「未設定」で、`body` から変数を外し、`styles.css` の既定値に従う。入力は `CSS.supports` で検証し、不正な間は保存しない。
+- 反映先は `body` だけで、表示済みの要素は作り直さない。ポップアウトウィンドウは `window-open` で反映する。無効化時（`onunload`）に外す。
+- 目盛り線と、不明・仮の分母の色は、設定にせず CSS 変数だけにしている。
 
 ## 依存
 
@@ -136,4 +157,6 @@ Obsidian（テーマ: Obsidian Nord）で、次の点を確認済み。
   - 幅を `12em`（192px）にすると、分母 36〜43 で目盛りが表示され、64 以上で消える。
   - 幅を変えると境界が動くので、Obsidian 同梱の Chromium（142）でも、長さ ÷ 長さの判定が使えている。使えない環境の代替（分母 33 以上で消える）では、分母 36〜43 に目盛りは出ない。
 
-未確認の点: 他のテーマ（Underwater など）での色、モバイルでの表示。
+- 設定（Obsidian、テーマ: Obsidian Nord）: 「Show label by default」の切り替えが、閲覧モードとライブプレビュー（テーブルのセルを含む）に、再読み込みなしで反映されること。
+
+未確認の点: 設定画面での寸法の入力（幅・太さ・余白）の反映、ポップアウトウィンドウでの設定の反映、他のテーマ（Underwater など）での色、モバイルでの表示。
