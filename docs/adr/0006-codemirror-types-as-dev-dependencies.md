@@ -11,6 +11,7 @@
 
 - `@codemirror/language` 6.13.1 を、`devDependencies` に固定バージョンで追加する。
 - `@codemirror/state` 6.5.0 と `@codemirror/view` 6.38.6 も、`devDependencies` に明記する。すでに `obsidian` パッケージの `peerDependencies` により入っていたが、直接 import しているため、ESLint の `import/no-extraneous-dependencies` の警告が出ていた。バージョンは、Obsidian が指定する値に合わせる。
+  - その後 `obsidian` を 1.14.4 に上げたのに合わせて、`@codemirror/state` を 6.7.6、`@codemirror/view` を 6.43.13 に更新した（`@codemirror/language` は 6.13.1 のまま）。
 
 ## 検討した代替案
 

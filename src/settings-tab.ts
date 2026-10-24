@@ -1,6 +1,6 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, SettingDefinitionItem } from 'obsidian';
 import type InlineProgressPlugin from './main';
-import { CSS_SETTINGS, DEFAULT_SETTINGS, isValidCssValue } from './settings';
+import { CSS_SETTINGS, isValidCssValue } from './settings';
 
 export class InlineProgressSettingTab extends PluginSettingTab {
 	constructor(
@@ -8,56 +8,39 @@ export class InlineProgressSettingTab extends PluginSettingTab {
 		private readonly plugin: InlineProgressPlugin,
 	) {
 		super(app, plugin);
+		// 設定画面だけに効く CSS の目印（styles.css のプレースホルダーの色）。
+		this.containerEl.addClass('inline-progress-settings');
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
-		// 設定画面だけに効く CSS の目印（styles.css のプレースホルダーの色）。
-		containerEl.addClass('inline-progress-settings');
+	getSettingDefinitions(): SettingDefinitionItem[] {
+		return [
+			{
+				name: 'Show label by default',
+				desc: '個別のフィールドでは、オプションの label / nolabel が優先されます。',
+				control: { type: 'toggle', key: 'showLabel' },
+			},
+			{
+				type: 'group',
+				heading: 'Appearance',
+				items: CSS_SETTINGS.map((def) => ({
+					name: def.name,
+					desc: `${def.desc}空欄のときは既定値に従います。CSS の書き方で入力します（例: 12em）。`,
+					control: {
+						type: 'text',
+						key: def.key,
+						placeholder: def.placeholder,
+						validate: (value: string) =>
+							isValidCssValue(def, value) ? undefined : '有効な CSS の値ではありません。',
+					},
+				})),
+			},
+		];
+	}
 
-		new Setting(containerEl)
-			.setName('Label')
-			.setDesc('個別のフィールドでは、オプションの label / nolabel が優先されます。')
-			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.showLabel).onChange(async (value) => {
-					this.plugin.settings.showLabel = value;
-					await this.plugin.saveSettings();
-				}),
-			)
-			.setName('Show label by default');
-
-		new Setting(containerEl)
-			.setName('Appearance')
-			.setDesc('空欄のときは、テーマと styles.css の既定値に従います。値は CSS の書き方で入力します（例: 12em）。')
-			.setHeading();
-
-		for (const def of CSS_SETTINGS) {
-			new Setting(containerEl)
-				.setName(def.name)
-				.setDesc(def.desc)
-				.addText((text) =>
-					text
-						.setPlaceholder(def.placeholder)
-						.setValue(this.plugin.settings[def.key])
-						.onChange(async (value) => {
-							const valid = isValidCssValue(def, value);
-							text.inputEl.toggleClass('mod-warning', !valid);
-							if (!valid) return; // 不正な間は保存・反映しない
-							this.plugin.settings[def.key] = value.trim();
-							await this.plugin.saveSettings();
-						}),
-				)
-				.addExtraButton((button) =>
-					button
-						.setIcon('reset')
-						.setTooltip('Reset to default')
-						.onClick(async () => {
-							this.plugin.settings[def.key] = DEFAULT_SETTINGS[def.key];
-							await this.plugin.saveSettings();
-							this.display();
-						}),
-				);
-		}
+	// 既定の実装は保存だけなので、保存に加えて表示への反映も行う。
+	async setControlValue(key: string, value: unknown): Promise<void> {
+		const settings = this.plugin.settings as unknown as Record<string, unknown>;
+		settings[key] = typeof value === 'string' ? value.trim() : value;
+		await this.plugin.saveSettings();
 	}
 }
