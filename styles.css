@@ -9,6 +9,7 @@
  *   --inline-progress-tick-color  目盛り線の色（既定 var(--background-primary)）
  *   --inline-progress-tick-min-pitch  目盛り線を表示する 1 区画の最小の幅（既定 4px）
  *   --inline-progress-unknown-color   分母が不明なときの破線の色（既定 var(--text-faint)）
+ *   --inline-progress-tentative-color 分母が仮のときの塗りの色（既定 var(--color-yellow)）
  * CSS スニペットで `.inline-progress { --inline-progress-width: 12em; }` のように上書きする。
  */
 
@@ -52,12 +53,21 @@
 	bottom: 0;
 	left: calc(var(--inline-progress-start, 0) * 100%);
 	width: calc(var(--inline-progress-length, 0) * 100%);
-	background-color: var(--interactive-accent);
+	background-color: var(--color-cyan);
 }
 
 /* 完了（全区画が塗られた）ときは、テーマの「成功」の色にする。 */
 .inline-progress.is-complete .inline-progress-fill {
 	background-color: var(--text-success);
+}
+
+/*
+ * 分母が仮（is-tentative）のときは、塗りを黄色にする。
+ * 仮の分母は確定していないので、全区画が塗られていても完了（緑）にはしない。
+ * 上の is-complete より後ろに書いて、同じ詳細度のなかで優先させている。
+ */
+.inline-progress.is-tentative .inline-progress-fill {
+	background-color: var(--inline-progress-tentative-color, var(--color-yellow));
 }
 
 /*

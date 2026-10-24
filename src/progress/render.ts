@@ -15,11 +15,12 @@ export const DENSE_TOTAL = 32;
  * <span class="inline-progress">                              全区画が塗られていれば is-complete、
  *                                                           区切りがあれば has-ticks、
  *                                                           区画が多ければ is-dense、
+ *                                                           分母が仮なら is-tentative、
  *                                                           分母が不明なら is-unknown が付く
  *   <div class="inline-progress-track" role="progressbar">   固定幅
  *     <div class="inline-progress-fill"></div>               塗り領域（複数のことがある。分母不明なら無い）
  *   </div>
- *   <span class="inline-progress-label">3/12</span>          nolabel なら無い。分母不明なら 3/??
+ *   <span class="inline-progress-label">3/12</span>          nolabel なら無い。分母が仮なら 3/12?、不明なら 3/??
  * </span>
  *
  * 塗り領域の位置と幅は、トラックに対する割合（0〜1）を CSS 変数で渡し、
@@ -29,7 +30,9 @@ export const DENSE_TOTAL = 32;
  */
 export function createProgressEl(data: ProgressData, doc: Document): HTMLElement {
 	const { total } = data;
-	const labelText = `${data.filledCount}/${total ?? '??'}`;
+	// 分母が不明なら `??`、仮なら数字のうしろに `?` を付ける。
+	const denominatorText = total === null ? '??' : `${total}${data.tentative ? '?' : ''}`;
+	const labelText = `${data.filledCount}/${denominatorText}`;
 
 	const root = doc.createElement('span');
 	root.className = 'inline-progress';
@@ -50,6 +53,12 @@ export function createProgressEl(data: ProgressData, doc: Document): HTMLElement
 		// すべての区画が塗られたら完了とし、色を変えるための目印を付ける。
 		if (data.filledCount === total) {
 			root.classList.add('is-complete');
+		}
+		// 分母が仮のときの目印。塗りの色は styles.css が決める（完了より優先される）。
+		if (data.tentative) {
+			root.classList.add('is-tentative');
+			// 仮であることを、読み上げでも伝える。
+			track.setAttribute('aria-valuetext', labelText);
 		}
 		// 区切りが2つ以上あれば、目盛り線を描く。濃さは CSS が 1 区画の幅に応じて決める。
 		if (total >= 2) {

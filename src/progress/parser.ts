@@ -19,6 +19,11 @@
  *   5/?-?  5/-?  5/?-  どちらも不明
  * 分母が不明なときは、塗り領域を作らない。位置指定でも、位置の範囲は検査せず、重複を除いた個数を完了数とする。
  *
+ * 仮の分母（`tentative` が true になる）: 分母の数字のうしろに `?` を付ける。
+ *   5/12?  5/13?-26  5/13-25?  5/13?-25?
+ * 分母の値としては `?` を付けないときと同じ扱い（塗りも検査も同じ）。仮であることだけを表示で区別する。
+ * 範囲の端が `?` だけ（`13-?`）や省略（`13-`）のときは、仮ではなく分母不明。
+ *
  * オプション（`;` 区切り。複数指定できる）:
  *   nolabel    ラベル（塗られた数/総数）を表示しない
  */
@@ -32,6 +37,8 @@ export interface FilledRange {
 export interface ProgressData {
 	/** 区画の総数。分母が不明なときは null（このとき ranges は空）。 */
 	total: number | null;
+	/** 分母が仮のとき true（分母の数字に `?` が付いている）。total が null のときは常に false。 */
+	tentative: boolean;
 	/** 塗られる範囲。昇順で、隣接する位置は1つにまとめてある。 */
 	ranges: readonly FilledRange[];
 	/** 塗られる区画の数 */
@@ -58,34 +65,50 @@ const FIELD_PATTERN = /\[progress::([^\]\n]*)\]/g;
  */
 const VALUE_PATTERN = /^([\d,]+)\/(.+)$/;
 
-/** 分母が `総数` の形（数字だけ） */
-const TOTAL_PATTERN = /^\d+$/;
+/** 分母が `総数` の形。数字のうしろの `?` は、仮の分母を表す。 */
+const TOTAL_PATTERN = /^(\d+)(\?)?$/;
 
-/** 分母が `開始-終了` の形。各端は数字、`?`、または省略。 */
-const RANGE_PATTERN = /^(\d+|\?)?-(\d+|\?)?$/;
-
-/** 分母の解析結果。known は範囲 first〜last（両端を含む）、unknown は分母不明。 */
-type Denominator = { kind: 'known'; first: number; last: number } | { kind: 'unknown' };
+/** 分母が `開始-終了` の形。各端は数字（うしろに `?` で仮）、`?`（不明）、または省略（不明）。 */
+const RANGE_PATTERN = /^(\d+\??|\?)?-(\d+\??|\?)?$/;
 
 /**
- * 分母の部分（`12`、`13-26`、`?`、`13-` など）を解析する。書式が不正なら null。
+ * 分母の解析結果。known は範囲 first〜last（両端を含む）で、tentative は端のどちらかに `?` が付いていること。
+ * unknown は分母不明。
+ */
+type Denominator =
+	| { kind: 'known'; first: number; last: number; tentative: boolean }
+	| { kind: 'unknown' };
+
+/** 範囲の端（`13`、`13?`、`?`、省略）を解析する。不明（`?` または省略）なら null。 */
+function parseEndpoint(text: string | undefined): { value: number; tentative: boolean } | null {
+	if (text === undefined || text === '?') return null;
+	const tentative = text.endsWith('?');
+	return { value: Number(tentative ? text.slice(0, -1) : text), tentative };
+}
+
+/**
+ * 分母の部分（`12`、`12?`、`13-26`、`13?-25?`、`?`、`13-` など）を解析する。書式が不正なら null。
  */
 function parseDenominator(text: string): Denominator | null {
 	// `総数` は `1-総数` と同じ。
-	if (TOTAL_PATTERN.test(text)) {
-		return { kind: 'known', first: 1, last: Number(text) };
+	const total = TOTAL_PATTERN.exec(text);
+	if (total) {
+		return { kind: 'known', first: 1, last: Number(total[1]), tentative: total[2] !== undefined };
 	}
 	if (text === '?') return { kind: 'unknown' };
 
 	const range = RANGE_PATTERN.exec(text);
 	if (!range) return null;
-	const startText = range[1];
-	const endText = range[2];
-	// 両端が数字のときだけ、範囲が確定する。どちらかが省略または `?` なら、分母は不明。
-	if (startText === undefined || endText === undefined || startText === '?' || endText === '?') {
-		return { kind: 'unknown' };
-	}
-	return { kind: 'known', first: Number(startText), last: Number(endText) };
+	const start = parseEndpoint(range[1]);
+	const end = parseEndpoint(range[2]);
+	// 両端が数字のときだけ、範囲が確定する。どちらかが省略または `?` だけなら、分母は不明。
+	if (start === null || end === null) return { kind: 'unknown' };
+	return {
+		kind: 'known',
+		first: start.value,
+		last: end.value,
+		tentative: start.tentative || end.tentative,
+	};
 }
 
 const OPTION_NO_LABEL = 'nolabel';
@@ -129,7 +152,7 @@ function parseWithUnknownTotal(
 		filledCount = Number(list);
 		if (!Number.isSafeInteger(filledCount)) return null;
 	}
-	return { total: null, ranges: [], filledCount, source };
+	return { total: null, tentative: false, ranges: [], filledCount, source };
 }
 
 /**
@@ -146,7 +169,8 @@ function parseValue(value: string): Omit<ProgressData, 'showLabel'> | null {
 	if (denominator.kind === 'unknown') return parseWithUnknownTotal(list, value);
 
 	// 対象の範囲 first〜last（両端を含む）。`/12` は `1-12` と同じ。
-	const { first, last } = denominator;
+	// 仮の分母（tentative）でも、値の扱いは `?` が無いときと同じ。
+	const { first, last, tentative } = denominator;
 	if (!Number.isSafeInteger(first) || !Number.isSafeInteger(last)) return null;
 	// 開始が終了を超える範囲（`26-13`）と、総数 0（`/0` は `1-0` になる）は不正。
 	if (first > last) return null;
@@ -173,7 +197,7 @@ function parseValue(value: string): Omit<ProgressData, 'showLabel'> | null {
 		ranges = count > 0 ? [{ start: 1, end: count }] : [];
 	}
 
-	return { total, ranges, filledCount: countFilled(ranges), source: value };
+	return { total, tentative, ranges, filledCount: countFilled(ranges), source: value };
 }
 
 /**
