@@ -4,7 +4,8 @@
  * 次の変数で見た目を変えられる。
  *   --inline-progress-width   バーの幅（既定 8em）
  *   --inline-progress-height  バーの太さ（既定 0.5em）
- *   --inline-progress-margin  コンポーネントの左右の余白（既定 0.4em）
+ *   --inline-progress-margin-start  コンポーネントの左の余白（既定 0.4em）
+ *   --inline-progress-margin-end    コンポーネントの右の余白（既定 0.4em）
  *   --inline-progress-tick-width  目盛り線の太さ（既定 1px）
  *   --inline-progress-tick-color  目盛り線の色（既定 var(--background-primary)）
  *   --inline-progress-tick-min-pitch  目盛り線を表示する 1 区画の最小の幅（既定 4px）
@@ -17,7 +18,8 @@
 	display: inline-flex;
 	align-items: center;
 	gap: 0.5em;
-	margin-inline: var(--inline-progress-margin, 0.4em);
+	margin-inline-start: var(--inline-progress-margin-start, 0.4em);
+	margin-inline-end: var(--inline-progress-margin-end, 0.4em);
 	/* 1lh が使えない環境向けの代替。バーの中心を x-height の半分の位置に合わせる。 */
 	vertical-align: middle;
 }
@@ -128,9 +130,30 @@
 	}
 }
 
+/*
+ * ラベルの表示。label-hide は `nolabel` で明示、label-auto は指定なし。
+ * 指定なし（label-auto）のときは、設定で既定を非表示にすると（body.inline-progress-hide-label）隠す。
+ * `label` で明示したものは、どちらのクラスも付かないので常に表示される。
+ */
+.inline-progress.label-hide .inline-progress-label,
+body.inline-progress-hide-label .inline-progress.label-auto .inline-progress-label {
+	display: none;
+}
+
 .inline-progress-label {
 	color: var(--text-muted);
 	font-size: 90%;
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
+}
+
+/*
+ * 設定画面の入力欄のプレースホルダー（既定値の表示）を、入力した文字と見分けられるよう薄くする。
+ * テーマによっては、プレースホルダーが入力文字と同じ色になるため。
+ * 文字色は入力文字と同じままにして、不透明度だけを下げる。背景に溶け込む分だけ、グレー寄りに見える。
+ */
+.inline-progress-settings input[type='text']::placeholder {
+	/* テーマによっては --text-faint が --text-normal とほぼ同じ色なので（Obsidian Nord など）、色ではなく不透明度で薄くする。 */
+	color: var(--text-normal);
+	opacity: 0.4;
 }

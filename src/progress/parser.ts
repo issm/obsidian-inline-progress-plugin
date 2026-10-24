@@ -25,7 +25,9 @@
  * 範囲の端が `?` だけ（`13-?`）や省略（`13-`）のときは、仮ではなく分母不明。
  *
  * オプション（`;` 区切り。複数指定できる）:
- *   nolabel    ラベル（塗られた数/総数）を表示しない
+ *   label      ラベル（塗られた数/総数）を表示する
+ *   nolabel    ラベルを表示しない
+ * どちらも指定しなければ、設定の既定に従う。両方を指定したものは不正値。
  */
 
 /** 塗る範囲。1始まりで、start と end を含む。 */
@@ -43,7 +45,11 @@ export interface ProgressData {
 	ranges: readonly FilledRange[];
 	/** 塗られる区画の数 */
 	filledCount: number;
-	showLabel: boolean;
+	/**
+	 * ラベルの表示を、オプションで明示したか。`label` なら 'show'、`nolabel` なら 'hide'、
+	 * 指定がなければ null（設定の既定に従う）。
+	 */
+	label: 'show' | 'hide' | null;
 	/** 値の部分の元の表記（アクセシビリティ用ラベルに使う） */
 	source: string;
 }
@@ -111,6 +117,7 @@ function parseDenominator(text: string): Denominator | null {
 	};
 }
 
+const OPTION_LABEL = 'label';
 const OPTION_NO_LABEL = 'nolabel';
 
 /** 位置の集合を、連続する範囲にまとめる。 */
@@ -139,7 +146,7 @@ function countFilled(ranges: readonly FilledRange[]): number {
 function parseWithUnknownTotal(
 	list: string,
 	source: string,
-): Omit<ProgressData, 'showLabel'> | null {
+): Omit<ProgressData, 'label'> | null {
 	let filledCount: number;
 	if (list.includes(',')) {
 		const positions = list
@@ -158,7 +165,7 @@ function parseWithUnknownTotal(
 /**
  * 値の部分（例: `1,3,5/12`）を解析する。不正なら null。
  */
-function parseValue(value: string): Omit<ProgressData, 'showLabel'> | null {
+function parseValue(value: string): Omit<ProgressData, 'label'> | null {
 	const match = VALUE_PATTERN.exec(value);
 	const list = match?.[1];
 	const denominatorText = match?.[2];
@@ -209,19 +216,24 @@ export function parseProgress(body: string): ProgressData | null {
 	const parsed = parseValue(valuePart.trim());
 	if (!parsed) return null;
 
-	let showLabel = true;
+	let showLabel = false;
+	let hideLabel = false;
 	for (const optionPart of optionParts) {
 		const option = optionPart.trim();
 		if (option === '') continue;
-		if (option === OPTION_NO_LABEL) {
-			showLabel = false;
+		if (option === OPTION_LABEL) {
+			showLabel = true;
+		} else if (option === OPTION_NO_LABEL) {
+			hideLabel = true;
 		} else {
 			// 未知のオプションは不正値として扱い、typo に気づけるようにする。
 			return null;
 		}
 	}
+	// `label` と `nolabel` は矛盾するので、不正値として扱う。
+	if (showLabel && hideLabel) return null;
 
-	return { ...parsed, showLabel };
+	return { ...parsed, label: showLabel ? 'show' : hideLabel ? 'hide' : null };
 }
 
 /**

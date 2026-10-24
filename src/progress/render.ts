@@ -20,7 +20,7 @@ export const DENSE_TOTAL = 32;
  *   <div class="inline-progress-track" role="progressbar">   固定幅
  *     <div class="inline-progress-fill"></div>               塗り領域（複数のことがある。分母不明なら無い）
  *   </div>
- *   <span class="inline-progress-label">3/12</span>          nolabel なら無い。分母が仮なら 3/12?、不明なら 3/??
+ *   <span class="inline-progress-label">3/12</span>          表示するかは CSS が決める（label-hide / label-auto）。分母が仮なら 3/12?、不明なら 3/??
  * </span>
  *
  * 塗り領域の位置と幅は、トラックに対する割合（0〜1）を CSS 変数で渡し、
@@ -87,12 +87,17 @@ export function createProgressEl(data: ProgressData, doc: Document): HTMLElement
 		}
 	}
 
-	if (data.showLabel) {
-		const label = doc.createElement('span');
-		label.className = 'inline-progress-label';
-		label.textContent = labelText;
-		root.appendChild(label);
-	}
+	// ラベルは常に作り、表示するかは CSS が決める。
+	// 設定（既定の表示）を変えたとき、作り直さなくても反映できるようにするため。
+	//   label-hide: `nolabel` で明示 → 常に隠す
+	//   label-auto: 指定なし → 設定の既定に従う
+	//   （`label` で明示したときはどちらも付けず、常に表示する）
+	if (data.label === 'hide') root.classList.add('label-hide');
+	else if (data.label === null) root.classList.add('label-auto');
+	const label = doc.createElement('span');
+	label.className = 'inline-progress-label';
+	label.textContent = labelText;
+	root.appendChild(label);
 
 	return root;
 }
