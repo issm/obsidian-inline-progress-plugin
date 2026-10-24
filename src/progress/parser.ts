@@ -12,6 +12,13 @@
  * `/` のうしろが `総数` のとき、範囲は `1-総数` と同じ。
  * 描画には、範囲の開始値を引いて 1 始まりに換算した位置を渡す。ラベルの分母は範囲の個数。
  *
+ * 分母が不明な書式（`total` が null になる）:
+ *   5/?  5/-         `?` または `-` だけ
+ *   5/13-?  5/13-    範囲の終了が不明
+ *   5/?-26  5/-26    範囲の開始が不明
+ *   5/?-?  5/-?  5/?-  どちらも不明
+ * 分母が不明なときは、塗り領域を作らない。位置指定でも、位置の範囲は検査せず、重複を除いた個数を完了数とする。
+ *
  * オプション（`;` 区切り。複数指定できる）:
  *   nolabel    ラベル（塗られた数/総数）を表示しない
  */
@@ -23,8 +30,8 @@ export interface FilledRange {
 }
 
 export interface ProgressData {
-	/** 区画の総数 */
-	total: number;
+	/** 区画の総数。分母が不明なときは null（このとき ranges は空）。 */
+	total: number | null;
 	/** 塗られる範囲。昇順で、隣接する位置は1つにまとめてある。 */
 	ranges: readonly FilledRange[];
 	/** 塗られる区画の数 */
@@ -46,10 +53,40 @@ export interface ProgressField {
 const FIELD_PATTERN = /\[progress::([^\]\n]*)\]/g;
 
 /**
- * 値の部分: `完了/総数` または `完了/開始-終了`。空白は許容しない。
- *   1: 完了（数字とカンマ）  2: 総数、または範囲の開始  3: 範囲の終了（省略可）
+ * 値の部分: `完了/分母`。空白は許容しない。
+ *   1: 完了（数字とカンマ）  2: 分母（`総数`、`開始-終了`、`?`、`-` など。後で解析する）
  */
-const VALUE_PATTERN = /^([\d,]+)\/(\d+)(?:-(\d+))?$/;
+const VALUE_PATTERN = /^([\d,]+)\/(.+)$/;
+
+/** 分母が `総数` の形（数字だけ） */
+const TOTAL_PATTERN = /^\d+$/;
+
+/** 分母が `開始-終了` の形。各端は数字、`?`、または省略。 */
+const RANGE_PATTERN = /^(\d+|\?)?-(\d+|\?)?$/;
+
+/** 分母の解析結果。known は範囲 first〜last（両端を含む）、unknown は分母不明。 */
+type Denominator = { kind: 'known'; first: number; last: number } | { kind: 'unknown' };
+
+/**
+ * 分母の部分（`12`、`13-26`、`?`、`13-` など）を解析する。書式が不正なら null。
+ */
+function parseDenominator(text: string): Denominator | null {
+	// `総数` は `1-総数` と同じ。
+	if (TOTAL_PATTERN.test(text)) {
+		return { kind: 'known', first: 1, last: Number(text) };
+	}
+	if (text === '?') return { kind: 'unknown' };
+
+	const range = RANGE_PATTERN.exec(text);
+	if (!range) return null;
+	const startText = range[1];
+	const endText = range[2];
+	// 両端が数字のときだけ、範囲が確定する。どちらかが省略または `?` なら、分母は不明。
+	if (startText === undefined || endText === undefined || startText === '?' || endText === '?') {
+		return { kind: 'unknown' };
+	}
+	return { kind: 'known', first: Number(startText), last: Number(endText) };
+}
 
 const OPTION_NO_LABEL = 'nolabel';
 
@@ -73,18 +110,43 @@ function countFilled(ranges: readonly FilledRange[]): number {
 }
 
 /**
+ * 分母が不明な値を解析する。区画の数が分からないので塗り領域は作らず、完了数だけを数える。
+ * 位置指定でも、位置が範囲内かは検査しない。完了数は、重複を除いた位置の個数。
+ */
+function parseWithUnknownTotal(
+	list: string,
+	source: string,
+): Omit<ProgressData, 'showLabel'> | null {
+	let filledCount: number;
+	if (list.includes(',')) {
+		const positions = list
+			.split(',')
+			.filter((s) => s !== '')
+			.map(Number);
+		if (positions.length === 0 || !positions.every((p) => Number.isSafeInteger(p))) return null;
+		filledCount = new Set(positions).size;
+	} else {
+		filledCount = Number(list);
+		if (!Number.isSafeInteger(filledCount)) return null;
+	}
+	return { total: null, ranges: [], filledCount, source };
+}
+
+/**
  * 値の部分（例: `1,3,5/12`）を解析する。不正なら null。
  */
 function parseValue(value: string): Omit<ProgressData, 'showLabel'> | null {
 	const match = VALUE_PATTERN.exec(value);
 	const list = match?.[1];
-	const secondText = match?.[2];
-	const thirdText = match?.[3];
-	if (list === undefined || secondText === undefined) return null;
+	const denominatorText = match?.[2];
+	if (list === undefined || denominatorText === undefined) return null;
+
+	const denominator = parseDenominator(denominatorText);
+	if (!denominator) return null;
+	if (denominator.kind === 'unknown') return parseWithUnknownTotal(list, value);
 
 	// 対象の範囲 first〜last（両端を含む）。`/12` は `1-12` と同じ。
-	const first = thirdText === undefined ? 1 : Number(secondText);
-	const last = Number(thirdText ?? secondText);
+	const { first, last } = denominator;
 	if (!Number.isSafeInteger(first) || !Number.isSafeInteger(last)) return null;
 	// 開始が終了を超える範囲（`26-13`）と、総数 0（`/0` は `1-0` になる）は不正。
 	if (first > last) return null;

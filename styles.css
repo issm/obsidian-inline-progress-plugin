@@ -8,6 +8,7 @@
  *   --inline-progress-tick-width  目盛り線の太さ（既定 1px）
  *   --inline-progress-tick-color  目盛り線の色（既定 var(--background-primary)）
  *   --inline-progress-tick-min-pitch  目盛り線を表示する 1 区画の最小の幅（既定 4px）
+ *   --inline-progress-unknown-color   分母が不明なときの破線の色（既定 var(--text-faint)）
  * CSS スニペットで `.inline-progress { --inline-progress-width: 12em; }` のように上書きする。
  */
 
@@ -57,6 +58,16 @@
 /* 完了（全区画が塗られた）ときは、テーマの「成功」の色にする。 */
 .inline-progress.is-complete .inline-progress-fill {
 	background-color: var(--text-success);
+}
+
+/*
+ * 分母が不明なとき（is-unknown）は、塗りなしで、背景の代わりに破線の枠を描く。
+ * 区画の数が分からないので、塗り領域も目盛り線も無い。
+ */
+.inline-progress.is-unknown .inline-progress-track {
+	background-color: transparent;
+	border: 1px dashed var(--inline-progress-unknown-color, var(--text-faint));
+	opacity: 0.8;
 }
 
 /*
