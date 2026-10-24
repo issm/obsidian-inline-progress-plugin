@@ -1,92 +1,112 @@
-# Obsidian Sample Plugin
+# Inline Progress
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+ノートの中の `[progress:: 10/12]` というインラインフィールドを、固定幅の進捗バーとして表示する Obsidian プラグインです。
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+個数で表す通常の進捗バーに加えて、完了した位置を指定する「歯抜け」の進捗バーも表せます。
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
+## 使い方
 
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and outputs a Notice on click.
-- Registers a global interval which logs 'setInterval' to the console.
+ノートに次のように書きます。
 
-## First time developing plugins?
+```
+- [ ] 通常の進捗 [progress:: 10/12]
+- [ ] 歯抜けの進捗 [progress:: 1,3,5/12]
+- [ ] 2番目だけ完了 [progress:: ,2/12]
+- [ ] ラベルなし [progress:: 10/12; nolabel]
+```
 
-Quick starting guide for new plugin devs:
+### 値の書式
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `src/main.ts` to `main.js`.
-- Make changes to `src/main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+`完了/総数` の形で書きます。
 
-## Releasing new releases
+| 書式 | 意味 |
+|---|---|
+| `10/12` | 12個のうち、先頭から10個が完了 |
+| `,2/12` | 12個のうち、2番目だけが完了 |
+| `1,3,5/12` | 12個のうち、1・3・5番目が完了（歯抜け） |
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+- 区切りのカンマが1つでも含まれていれば、位置の指定になります。含まれなければ個数の指定です。`2/12` は「先頭から2個」、`,2/12` は「2番目だけ」を表します。
+- 位置は1始まりです。重複した位置は1つにまとめられます。
+- 先頭や末尾のカンマは無視されます。`,2/12` と `2,/12` は同じ意味です。
+- 値の内側には空白を置けません。`1, 3/12` や `10 /12` は不正な値になります。`progress::` の直後の空白や、`;` の前後の空白は構いません。
+- フィールド名の区切りはコロン2つ（`progress::`）です。
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### オプション
 
-## Adding your plugin to the community plugin list
+値のうしろに `;` で区切って書きます。
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+| オプション | 意味 |
+|---|---|
+| `nolabel` | バーの右のラベルを表示しない |
 
-## How to use
+```
+[progress:: 10/12; nolabel]
+```
 
-- Clone this repo.
-- Make sure your NodeJS is at least v18 (`node --version`).
-- `npm i` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+### ラベル
 
-## Manually installing the plugin
+バーの右に、完了した数と総数を `3/12` のように表示します。位置指定（`1,3,5/12`）の場合は、完了した位置の数（3個）が表示されます。`nolabel` で消せます。
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+### 不正な値
 
-## Improve code quality with eslint
+次のような値は、バーに置き換えず、元のテキストのまま表示します。書き間違いに気づけるようにするためです。
 
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code.
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+- 個数が総数を超える（`13/12`）
+- 位置が範囲外（`0,13/12`、`1,13/12`）
+- 総数が 0（`1/0`）
+- 数字のない位置指定（`,/12`）
+- 値の内側に空白がある（`1, 3/12`）
+- 未知のオプション（`10/12; foo`）
 
-## Funding URL
+## 表示
 
-You can include funding URLs where people who use your plugin can financially support it.
+- 閲覧モードとライブプレビューで表示されます。ソースモードでは、元のテキストのまま表示されます。
+- ライブプレビューでは、カーソルや選択範囲がフィールドに触れている間は、編集できるよう元のテキストが表示されます。
+- インラインコードやコードブロックの中は、置き換えません。
+- 全区画が完了したとき（`12/12` など）は、バーの塗りがテーマの「成功」の色（`--text-success`）になります。
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+### 見た目の調整
 
-```json
-{
-	"fundingUrl": "https://buymeacoffee.com"
+バーの見た目は CSS 変数で変えられます。**Settings → Appearance → CSS snippets** に、次のような CSS スニペットを追加してください。
+
+```css
+.inline-progress {
+	--inline-progress-width: 12em;   /* バーの幅（既定 8em） */
+	--inline-progress-height: 0.4em; /* バーの太さ（既定 0.5em） */
+	--inline-progress-margin: 0.6em; /* 左右の余白（既定 0.4em） */
 }
 ```
 
-If you have multiple URLs, you can also do:
+色は、テーマの変数（塗りは `--interactive-accent`、完了時は `--text-success`、背景は `--background-modifier-border`）に従います。
 
-```json
-{
-	"fundingUrl": {
-		"Buy Me a Coffee": "https://buymeacoffee.com",
-		"GitHub Sponsor": "https://github.com/sponsors",
-		"Patreon": "https://www.patreon.com/"
-	}
-}
+## インストール
+
+現在はコミュニティプラグインとしては公開していません。手動でインストールします。
+
+1. `main.js`、`manifest.json`、`styles.css` を、Vault の `.obsidian/plugins/inline-progress/` にコピーします。
+2. Obsidian を再読み込みします。
+3. **Settings → Community plugins** で **Inline Progress** を有効にします。
+
+## 開発
+
+Node.js 18 以上が必要です。
+
+```bash
+npm install
+npm run dev     # 変更を監視してビルド
+npm run build   # 型チェックと本番ビルド
+npm run lint    # ESLint
 ```
 
-## API Documentation
+ソースは `src/` にあります。設計は [docs/design.md](docs/design.md)、設計上の判断の記録は [docs/adr/](docs/adr/) にあります。
 
-See https://docs.obsidian.md
+## リリース
+
+- `manifest.json` の `version` を上げ、`versions.json` に対応する最小の Obsidian バージョンを追加します。`npm version patch` などで、この2つをまとめて更新できます。
+- GitHub のリリースを作ります。タグは `manifest.json` の `version` と完全に同じにします（先頭に `v` を付けません）。
+- `manifest.json`、`main.js`、`styles.css` を、リリースにファイルとして添付します。
+
+## 参考
+
+- [Obsidian 開発者向けドキュメント](https://docs.obsidian.md)
+- [プラグインのガイドライン](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines)
