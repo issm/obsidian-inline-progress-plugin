@@ -29,4 +29,11 @@ export default defineConfig(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		// ポップアウトウィンドウのために、渡された doc で要素を作る。理由は docs/adr/0012-keep-document-create-element.md。
+		files: ['src/progress/render.ts', 'src/progress/reading-view.ts'],
+		rules: {
+			'obsidianmd/prefer-create-el': 'off',
+		},
+	},
 );
