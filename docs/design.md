@@ -113,7 +113,7 @@ styles.css           # 見た目
   - 使えない環境向けに、総数が `DENSE_TOTAL`（32）を超えるとき `is-dense` クラスを付け、CSS で目盛りを消す。
   - 線の太さと色は `--inline-progress-tick-width`（既定 `1px`）と `--inline-progress-tick-color`（既定 `--background-primary`）、表示する 1 区画の最小の幅は `--inline-progress-tick-min-pitch`（既定 `4px`）で変えられる。
 - 行の中央に揃えるため、外側は `height: 1lh` の箱にして `align-items: center`、`vertical-align: top` で行の上端に合わせる。`1lh` が使えない環境では `vertical-align: middle` にフォールバックする。
-- 要素は `doc.createElement` で作る。`doc` は呼び出し側（`el.ownerDocument` / `view.dom.ownerDocument`）から渡し、ポップアウトウィンドウでも正しく動くようにする。
+- 要素は `doc.createElement` で作る。`doc` は呼び出し側（`el.ownerDocument` / `view.dom.ownerDocument`）から渡し、ポップアウトウィンドウでも正しく動くようにする。`obsidianmd/prefer-create-el` の警告は、理由を [ADR 0012](adr/0012-keep-document-create-element.md) に書いて、この2ファイルに限って無効にしている。
 
 ## 設定
 
