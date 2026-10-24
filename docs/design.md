@@ -161,6 +161,7 @@ Obsidian（テーマ: Obsidian Nord）で、次の点を確認済み。
 - 設定の寸法（幅・太さ・左右の余白）の入力が反映されること。PC と iPhone で、ざっと確認した。
 - ポップアウトウィンドウ（タブの右クリックメニューの「新しいウィンドウ」）に、設定が反映されること。
 - 保存した設定が、Obsidian の再起動後に復元されること。
+- 宣言的な設定 API（`getSettingDefinitions()`）に移したあとの設定画面（Obsidian 1.14.5）で、各項目の反映と保存が変わらず動くこと。
 
 - テーマ（デフォルト、AnuPpuccin、Obsidian Nord、PLN、Underwater）のダークとライトの両方で、色を確認した。Underwater 以外は、満了時と通常の塗りの色が区別できる。Underwater は、2つが同じ色になる（README の「見た目の調整」に回避策を書いている）。
 
