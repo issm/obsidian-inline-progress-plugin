@@ -8,7 +8,7 @@
   - リモート: `origin`（`git@github.com:issm/obsidian-inline-progress-plugin.git`）
 - Vault は、このリポジトリを開発用に含んでいるだけで、Vault 自体は git のリポジトリではない。Vault 直下で git のコマンドを実行すると `fatal: not a git repository` になる。
 - git のコマンドは、このリポジトリのルートで実行する（`cwd` を指定する）。
-- Vault 直下のノート（`sample2.md`、実装方針のメモなど）は、リポジトリの管理外。コミットに含まれない。
+- Vault 内のノートや画像（`dev/inline-progress/sample.md`、`dev/inline-progress/images/`、Vault 直下の実装方針のメモなど）は、リポジトリの管理外。コミットに含まれない。
 
 ## コミットメッセージ
 
